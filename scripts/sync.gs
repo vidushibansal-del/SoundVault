@@ -44,13 +44,21 @@ function syncSoundVault() {
 
   // Files in subfolders → category = subfolder name
   var subfolders = rootFolder.getFolders();
+  var subfolderCount = 0;
   while (subfolders.hasNext()) {
     var folder     = subfolders.next();
     var category   = folder.getName();
+    subfolderCount++;
     var folderFiles = folder.getFiles();
+    var fileCountInFolder = 0;
     while (folderFiles.hasNext()) {
       var f = folderFiles.next();
-      if (AUDIO_EXTENSIONS.indexOf(getExtension(f.getName())) === -1) continue;
+      fileCountInFolder++;
+      var ext = getExtension(f.getName());
+      if (fileCountInFolder <= 3) {
+        Logger.log('  [' + category + '] ' + f.getName() + ' → ext: "' + ext + '"');
+      }
+      if (AUDIO_EXTENSIONS.indexOf(ext) === -1) continue;
       files.push({
         id:           f.getId(),
         name:         f.getName(),
@@ -60,7 +68,9 @@ function syncSoundVault() {
         modifiedTime: f.getLastUpdated().toISOString()
       });
     }
+    Logger.log('Subfolder "' + category + '": ' + fileCountInFolder + ' total files');
   }
+  Logger.log('Subfolders found: ' + subfolderCount);
 
   Logger.log('Audio files found: ' + files.length);
   if (files.length === 0) {
