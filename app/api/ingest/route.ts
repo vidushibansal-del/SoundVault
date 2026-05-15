@@ -9,6 +9,7 @@ type IngestFile = {
   webViewLink: string
   size: number | null
   modifiedTime: string | null
+  uploadedBy: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
         download_link: `https://drive.google.com/uc?export=download&id=${f.id}`,
         file_size: f.size ?? null,
         modified_in_drive: f.modifiedTime ?? null,
+        uploaded_by: f.uploadedBy ?? null,
       }
     })
 

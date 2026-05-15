@@ -21,7 +21,7 @@ function listFiles(folderId) {
   do {
     var res = Drive.Files.list({
       q:                         "'" + folderId + "' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'",
-      fields:                    'nextPageToken,files(id,name,size,modifiedTime,webViewLink)',
+      fields:                    'nextPageToken,files(id,name,size,modifiedTime,webViewLink,owners)',
       pageSize:                  1000,
       includeItemsFromAllDrives: true,
       supportsAllDrives:         true,
@@ -75,7 +75,8 @@ function syncSoundVault() {
       category:     'Uncategorized',
       webViewLink:  f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'),
       size:         f.size ? parseInt(f.size) : null,
-      modifiedTime: f.modifiedTime || null
+      modifiedTime: f.modifiedTime || null,
+      uploadedBy:   (f.owners && f.owners[0]) ? f.owners[0].displayName : null
     });
   });
 
@@ -91,7 +92,8 @@ function syncSoundVault() {
         category:     folder.name,
         webViewLink:  f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'),
         size:         f.size ? parseInt(f.size) : null,
-        modifiedTime: f.modifiedTime || null
+        modifiedTime: f.modifiedTime || null,
+        uploadedBy:   (f.owners && f.owners[0]) ? f.owners[0].displayName : null
       });
     });
   });

@@ -18,6 +18,11 @@ function timeAgo(iso: string | null): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export default function Home() {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
@@ -137,9 +142,11 @@ export default function Home() {
                     {s.category}
                     {s.tags.length > 0 && <span> · {s.tags.join(' ')}</span>}
                   </div>
-                  {s.file_size && (
-                    <div className="text-xs text-gray-500 mt-0.5">{formatBytes(s.file_size)}</div>
-                  )}
+                  <div className="text-xs text-gray-500 mt-0.5 flex gap-3">
+                    {s.file_size && <span>{formatBytes(s.file_size)}</span>}
+                    {s.uploaded_by && <span>by {s.uploaded_by}</span>}
+                    {s.modified_in_drive && <span>modified {formatDate(s.modified_in_drive)}</span>}
+                  </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <a

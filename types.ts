@@ -10,6 +10,7 @@ export type Sound = {
   download_link: string
   file_size: number | null
   modified_in_drive: string | null
+  uploaded_by: string | null
 }
 
 export type SyncStatus = {
