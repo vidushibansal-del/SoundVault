@@ -1,0 +1,23 @@
+{
+  "name": "soundvault",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.x",
+    "@supabase/supabase-js": "latest"
+  },
+  "devDependencies": {
+    "typescript": "5.x",
+    "tailwindcss": "3.x",
+    "postcss": "^8",
+    "autoprefixer": "^10",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}
