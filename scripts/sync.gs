@@ -8,6 +8,7 @@
 var AUDIO_EXTENSIONS = ['.wav', '.mp3', '.aiff', '.flac', '.ogg'];
 
 function getExtension(name) {
+  if (!name) return '';
   var idx = name.lastIndexOf('.');
   return idx === -1 ? '' : name.substring(idx).toLowerCase();
 }
