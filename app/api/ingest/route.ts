@@ -51,20 +51,12 @@ export async function POST(req: NextRequest) {
       filesUpserted += batch.length
     }
 
-    const fetchedIds = files.map(f => f.id)
-    const { data: deleted } = await serviceClient
-      .from('sounds')
-      .delete()
-      .not('drive_id', 'in', `(${fetchedIds.map(id => `'${id}'`).join(',')})`)
-      .select('id')
-    const filesDeleted = deleted?.length ?? 0
-
     await serviceClient
       .from('sync_log')
-      .update({ status: 'success', files_upserted: filesUpserted, files_deleted: filesDeleted, finished_at: new Date().toISOString() })
+      .update({ status: 'success', files_upserted: filesUpserted, finished_at: new Date().toISOString() })
       .eq('id', logId)
 
-    return Response.json({ status: 'success', files_upserted: filesUpserted, files_deleted: filesDeleted })
+    return Response.json({ status: 'success', files_upserted: filesUpserted })
   } catch (err: any) {
     await serviceClient
       .from('sync_log')
