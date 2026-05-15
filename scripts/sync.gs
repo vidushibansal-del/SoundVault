@@ -1,9 +1,8 @@
 // SoundVault — Google Apps Script sync
-// Paste this at script.google.com, set Script Properties, add a daily trigger.
-//
 // Script Properties required (Project Settings → Script Properties):
 //   INGEST_SECRET  — must match INGEST_SECRET in Vercel env vars
-//   INGEST_URL     — your Vercel deployment URL, e.g. https://soundvault.vercel.app/api/ingest
+//   INGEST_URL     — https://your-app.vercel.app/api/ingest
+//   FOLDER_ID      — Google Drive folder ID from the URL
 
 var AUDIO_EXTENSIONS = ['.wav', '.mp3', '.aiff', '.flac', '.ogg'];
 
@@ -14,7 +13,7 @@ function getExtension(name) {
 }
 
 function syncSoundVault() {
-  var props = PropertiesService.getScriptProperties();
+  var props         = PropertiesService.getScriptProperties();
   var INGEST_SECRET = props.getProperty('INGEST_SECRET');
   var INGEST_URL    = props.getProperty('INGEST_URL');
   var FOLDER_ID     = props.getProperty('FOLDER_ID');
@@ -23,10 +22,12 @@ function syncSoundVault() {
     throw new Error('Missing Script Properties: INGEST_SECRET, INGEST_URL, FOLDER_ID');
   }
 
+  Logger.log('Config OK. Scanning folder: ' + FOLDER_ID);
+
   var rootFolder = DriveApp.getFolderById(FOLDER_ID);
   var files = [];
 
-  // Files directly in root folder → Uncategorized
+  // Files directly in root → Uncategorized
   var rootFiles = rootFolder.getFiles();
   while (rootFiles.hasNext()) {
     var f = rootFiles.next();
@@ -44,8 +45,8 @@ function syncSoundVault() {
   // Files in subfolders → category = subfolder name
   var subfolders = rootFolder.getFolders();
   while (subfolders.hasNext()) {
-    var folder = subfolders.next();
-    var category = folder.getName();
+    var folder     = subfolders.next();
+    var category   = folder.getName();
     var folderFiles = folder.getFiles();
     while (folderFiles.hasNext()) {
       var f = folderFiles.next();
@@ -61,28 +62,25 @@ function syncSoundVault() {
     }
   }
 
-  Logger.log('Total audio files found: ' + files.length);
-  if (files.length > 0) {
-    Logger.log('Sample file: ' + JSON.stringify(files[0]));
-  }
-
+  Logger.log('Audio files found: ' + files.length);
   if (files.length === 0) {
-    Logger.log('No audio files found — check FOLDER_ID and folder structure.');
+    Logger.log('Nothing to ingest — check FOLDER_ID and folder structure.');
     return;
   }
+  Logger.log('Sample: ' + JSON.stringify(files[0]));
 
   var response = UrlFetchApp.fetch(INGEST_URL, {
-    method:      'post',
-    contentType: 'application/json',
-    headers:     { 'Authorization': 'Bearer ' + INGEST_SECRET },
-    payload:     JSON.stringify({ files: files }),
+    method:             'post',
+    contentType:        'application/json',
+    headers:            { 'Authorization': 'Bearer ' + INGEST_SECRET },
+    payload:            JSON.stringify({ files: files }),
     muteHttpExceptions: true
   });
 
-  Logger.log('Ingest status: ' + response.getResponseCode());
-  Logger.log('Ingest response: ' + response.getContentText());
+  Logger.log('Status: ' + response.getResponseCode());
+  Logger.log('Response: ' + response.getContentText());
 
   if (response.getResponseCode() !== 200) {
-    throw new Error('Ingest failed: ' + response.getContentText());
+    throw new Error('Ingest failed (' + response.getResponseCode() + '): ' + response.getContentText());
   }
 }
