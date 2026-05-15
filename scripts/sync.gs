@@ -61,6 +61,16 @@ function syncSoundVault() {
     }
   }
 
+  Logger.log('Total audio files found: ' + files.length);
+  if (files.length > 0) {
+    Logger.log('Sample file: ' + JSON.stringify(files[0]));
+  }
+
+  if (files.length === 0) {
+    Logger.log('No audio files found — check FOLDER_ID and folder structure.');
+    return;
+  }
+
   var response = UrlFetchApp.fetch(INGEST_URL, {
     method:      'post',
     contentType: 'application/json',
@@ -69,8 +79,8 @@ function syncSoundVault() {
     muteHttpExceptions: true
   });
 
-  Logger.log('Status: ' + response.getResponseCode());
-  Logger.log('Response: ' + response.getContentText());
+  Logger.log('Ingest status: ' + response.getResponseCode());
+  Logger.log('Ingest response: ' + response.getContentText());
 
   if (response.getResponseCode() !== 200) {
     throw new Error('Ingest failed: ' + response.getContentText());
