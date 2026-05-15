@@ -1,8 +1,11 @@
 // SoundVault — Google Apps Script sync
-// Script Properties required (Project Settings → Script Properties):
+//
+// SETUP: In Apps Script editor → click "+" next to Services → add "Drive API" (v3)
+//
+// Script Properties (Project Settings → Script Properties):
 //   INGEST_SECRET  — must match INGEST_SECRET in Vercel env vars
 //   INGEST_URL     — https://your-app.vercel.app/api/ingest
-//   FOLDER_ID      — Google Drive folder ID from the URL
+//   FOLDER_ID      — Google Drive folder ID from the folder URL
 
 var AUDIO_EXTENSIONS = ['.wav', '.mp3', '.aiff', '.flac', '.ogg'];
 
@@ -10,6 +13,44 @@ function getExtension(name) {
   if (!name) return '';
   var idx = name.lastIndexOf('.');
   return idx === -1 ? '' : name.substring(idx).toLowerCase();
+}
+
+function listFiles(folderId) {
+  var results = [];
+  var pageToken = null;
+  do {
+    var res = Drive.Files.list({
+      q:                        "'" + folderId + "' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'",
+      fields:                   'nextPageToken,files(id,name,size,modifiedTime,webViewLink)',
+      pageSize:                 1000,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives:        true,
+      corpora:                  'allDrives',
+      pageToken:                pageToken
+    });
+    if (res.files) results = results.concat(res.files);
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  return results;
+}
+
+function listSubfolders(folderId) {
+  var results = [];
+  var pageToken = null;
+  do {
+    var res = Drive.Files.list({
+      q:                        "'" + folderId + "' in parents and trashed=false and mimeType = 'application/vnd.google-apps.folder'",
+      fields:                   'nextPageToken,files(id,name)',
+      pageSize:                 1000,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives:        true,
+      corpora:                  'allDrives',
+      pageToken:                pageToken
+    });
+    if (res.files) results = results.concat(res.files);
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  return results;
 }
 
 function syncSoundVault() {
@@ -24,53 +65,41 @@ function syncSoundVault() {
 
   Logger.log('Config OK. Scanning folder: ' + FOLDER_ID);
 
-  var rootFolder = DriveApp.getFolderById(FOLDER_ID);
   var files = [];
 
   // Files directly in root → Uncategorized
-  var rootFiles = rootFolder.getFiles();
-  while (rootFiles.hasNext()) {
-    var f = rootFiles.next();
-    if (AUDIO_EXTENSIONS.indexOf(getExtension(f.getName())) === -1) continue;
+  var rootFiles = listFiles(FOLDER_ID);
+  rootFiles.forEach(function(f) {
+    if (AUDIO_EXTENSIONS.indexOf(getExtension(f.name)) === -1) return;
     files.push({
-      id:           f.getId(),
-      name:         f.getName(),
+      id:           f.id,
+      name:         f.name,
       category:     'Uncategorized',
-      webViewLink:  f.getUrl(),
-      size:         f.getSize(),
-      modifiedTime: f.getLastUpdated().toISOString()
+      webViewLink:  f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'),
+      size:         f.size ? parseInt(f.size) : null,
+      modifiedTime: f.modifiedTime || null
     });
-  }
+  });
 
   // Files in subfolders → category = subfolder name
-  var subfolders = rootFolder.getFolders();
-  var subfolderCount = 0;
-  while (subfolders.hasNext()) {
-    var folder     = subfolders.next();
-    var category   = folder.getName();
-    subfolderCount++;
-    var folderFiles = folder.getFiles();
-    var fileCountInFolder = 0;
-    while (folderFiles.hasNext()) {
-      var f = folderFiles.next();
-      fileCountInFolder++;
-      var ext = getExtension(f.getName());
-      if (fileCountInFolder <= 3) {
-        Logger.log('  [' + category + '] ' + f.getName() + ' → ext: "' + ext + '"');
-      }
-      if (AUDIO_EXTENSIONS.indexOf(ext) === -1) continue;
+  var subfolders = listSubfolders(FOLDER_ID);
+  Logger.log('Subfolders found: ' + subfolders.length);
+
+  subfolders.forEach(function(folder) {
+    var folderFiles = listFiles(folder.id);
+    Logger.log('Subfolder "' + folder.name + '": ' + folderFiles.length + ' files');
+    folderFiles.forEach(function(f) {
+      if (AUDIO_EXTENSIONS.indexOf(getExtension(f.name)) === -1) return;
       files.push({
-        id:           f.getId(),
-        name:         f.getName(),
-        category:     category,
-        webViewLink:  f.getUrl(),
-        size:         f.getSize(),
-        modifiedTime: f.getLastUpdated().toISOString()
+        id:           f.id,
+        name:         f.name,
+        category:     folder.name,
+        webViewLink:  f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view'),
+        size:         f.size ? parseInt(f.size) : null,
+        modifiedTime: f.modifiedTime || null
       });
-    }
-    Logger.log('Subfolder "' + category + '": ' + fileCountInFolder + ' total files');
-  }
-  Logger.log('Subfolders found: ' + subfolderCount);
+    });
+  });
 
   Logger.log('Audio files found: ' + files.length);
   if (files.length === 0) {
@@ -79,12 +108,14 @@ function syncSoundVault() {
   }
   Logger.log('Sample: ' + JSON.stringify(files[0]));
 
+  Logger.log('Posting to: ' + INGEST_URL);
   var response = UrlFetchApp.fetch(INGEST_URL, {
     method:             'post',
     contentType:        'application/json',
     headers:            { 'Authorization': 'Bearer ' + INGEST_SECRET },
     payload:            JSON.stringify({ files: files }),
-    muteHttpExceptions: true
+    muteHttpExceptions: true,
+    followRedirects:    false
   });
 
   Logger.log('Status: ' + response.getResponseCode());
